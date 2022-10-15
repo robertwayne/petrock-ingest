@@ -26,7 +26,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let pg = Arc::new(create_pool().await?);
-    let mut interval = tokio::time::interval(Duration::from_secs(5));
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
 
     let mut leaderboard: Leaderboard = Vec::new();
     let mut players_online: OnlineList = Vec::new();
