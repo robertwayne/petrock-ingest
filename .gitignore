@@ -1,0 +1,13 @@
+# Directories
+dist
+build
+target
+node_modules
+
+# Files
+.log
+.env
+
+# User Settings
+.vscode
+.idea

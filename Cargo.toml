@@ -1,0 +1,39 @@
+[package]
+name = "petrock-ingest"
+authors = ["Rob Wagner <rob@sombia.com"]
+license = "MIT OR Apache-2.0"
+description = "Background service for updating the Petrock database."
+repository = "https://github.com/robertwayne/petrock-ingest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+dotenvy = "0.15"
+reqwest = { version = "0.11", default-features = false, features = [
+    "json",
+    "rustls-tls",
+] }
+serde = "1"
+serde_json = "1"
+sqlx = { version = "0.6", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "json",
+] }
+tokio = { version = "1", default-features = false, features = [
+    "rt-multi-thread",
+    "macros",
+    "tracing",
+] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "time",
+    "env-filter",
+    "local-time",
+] }
+
+[profile.release]
+opt-level = 3
+codegen-units = 1
+lto = true
