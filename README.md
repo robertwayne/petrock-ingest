@@ -6,7 +6,7 @@ This is a background service for interacting with the [RetroMMO](https://retro-m
 
 ## License
 
-petrock-spider source code is dual-licensed under either
+petrock-ingest source code is dual-licensed under either
 
 - **[MIT License](/docs/LICENSE-MIT)**
 - **[Apache License, Version 2.0](/docs/LICENSE-APACHE)**
