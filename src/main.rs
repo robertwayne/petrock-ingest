@@ -1,24 +1,13 @@
 use anyhow::Result;
 use dotenvy::dotenv;
+use retrommo_fetch::prelude::*;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::time::Duration;
 
 use std::{env, sync::Arc};
 
-const API_URL_PLAYERS: &str = "https://play.retro-mmo.com/players.json";
-const API_URL_LEADERBOARD: &str = "https://play.retro-mmo.com/leaderboards.json";
-
 type Database = Arc<PgPool>;
-type OnlineList = Vec<String>;
-type Leaderboard = Vec<LeaderboardEntry>;
-
-#[derive(Debug, Deserialize, Serialize)]
-struct LeaderboardEntry {
-    experience: u64, // Should never be negative. I assume Evan checks.
-    permissions: u8, // Should also be safe...
-    username: String,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,17 +15,26 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let pg = Arc::new(create_pool().await?);
-    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    let mut interval = tokio::time::interval(Duration::from_secs(
+        env::var("TICK_RATE")
+            .unwrap_or_else(|_| "60".to_string())
+            .parse()
+            .expect("Environment variables TICK_RATE not set."),
+    ));
 
-    let mut leaderboard: Leaderboard = Vec::new();
+    let mut leaderboard: LeaderboardPage = Vec::new();
     let mut players_online: OnlineList = Vec::new();
 
     tracing::info!("Petrock Ingest service started successfully.");
 
     loop {
         interval.tick().await;
-        fetch_players(&mut players_online).await?;
-        fetch_leaderboard(&mut leaderboard).await?;
+
+        // Fetch new data.
+        players_online = get_online_players().await?;
+        leaderboard = get_top_players().await?;
+
+        // Calculate experience differences and push to the database.
         process(&players_online, &leaderboard, pg.clone()).await?;
 
         tracing::info!("Processed {} players", players_online.len());
@@ -44,28 +42,10 @@ async fn main() -> Result<()> {
     }
 }
 
-async fn fetch_players(players_online: &mut OnlineList) -> Result<()> {
-    let response = reqwest::get(API_URL_PLAYERS).await?;
-
-    let mut json = response.json::<OnlineList>().await?;
-    std::mem::swap(players_online, &mut json);
-
-    Ok(())
-}
-
-async fn fetch_leaderboard(leaderboard: &mut Leaderboard) -> Result<()> {
-    let response = reqwest::get(API_URL_LEADERBOARD).await?;
-
-    let mut json = response.json::<Leaderboard>().await?;
-    std::mem::swap(leaderboard, &mut json);
-
-    Ok(())
-}
-
 /// Processes the online list and the leaderboard data.
 async fn process(
     _players_online: &OnlineList,
-    _leaderboard: &Leaderboard,
+    _leaderboard: &LeaderboardPage,
     _pg: Database,
 ) -> Result<()> {
     // sqlx::query!(
