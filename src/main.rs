@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dotenvy::dotenv;
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgConnectOptions, PgPool};
+use sqlx::PgPool;
 use tokio::time::Duration;
 
 use std::{env, sync::Arc};
@@ -107,21 +107,9 @@ async fn process(
 async fn create_pool() -> Result<PgPool> {
     //! FIXME: Should save data in memory if we can't connect, and try
     //! intermittently during the main loop.
-    let pool = PgPool::connect_with({
-        PgConnectOptions::new()
-            .host(env::var("PGHOST").unwrap_or_else(|_| "localhost".into()).as_str())
-            .port(
-                env::var("PGPORT")
-                    .unwrap_or_else(|_| "5432".into())
-                    .parse::<u16>()
-                    .unwrap_or_default(),
-            )
-            .username(env::var("PGUSER").unwrap_or_else(|_| "postgres".into()).as_str())
-            .password(env::var("PGPASS").unwrap_or_else(|_| "postgres".into()).as_str())
-            .database(env::var("PGDBNAME").unwrap_or_else(|_| "postgres".into()).as_str())
-    })
-    .await
-    .expect("Failed to connect to PostgreSQL database.");
+    let url = env::var("DATABASE_URL").expect("Environment variables DATABASE_URL not set.");
+    let pool =
+        PgPool::connect(url.as_str()).await.expect("Failed to connect to PostgreSQL database.");
 
     Ok(pool)
 }
