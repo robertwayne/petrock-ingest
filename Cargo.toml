@@ -1,6 +1,6 @@
 [package]
 name = "petrock-ingest"
-authors = ["Rob Wagner <rob@sombia.com"]
+authors = ["Rob Wagner <rob@sombia.com>"]
 license = "MIT OR Apache-2.0"
 description = "Background service for updating the Petrock database."
 repository = "https://github.com/robertwayne/petrock-ingest"
