@@ -1,7 +1,6 @@
 use anyhow::Result;
 use dotenvy::dotenv;
 use retrommo_fetch::prelude::*;
-use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::time::Duration;
 
@@ -22,32 +21,83 @@ async fn main() -> Result<()> {
             .expect("Environment variables TICK_RATE not set."),
     ));
 
-    let mut leaderboard: LeaderboardPage = Vec::new();
-    let mut players_online: OnlineList = Vec::new();
-
     tracing::info!("Petrock Ingest service started successfully.");
+
+    // populate_players_table(pg).await?;
 
     loop {
         interval.tick().await;
 
         // Fetch new data.
-        players_online = get_online_players().await?;
-        leaderboard = get_top_players().await?;
+        let players_online = get_online_players().await?;
+        // leaderboard = get_top_players().await?;
 
         // Calculate experience differences and push to the database.
-        process(&players_online, &leaderboard, pg.clone()).await?;
+        // process(&players_online, &leaderboard, pg.clone()).await?;
 
         tracing::info!("Processed {} players", players_online.len());
         tracing::info!("Online Now: {:?}", players_online);
     }
 }
 
+async fn populate_players_table(pg: Database) -> Result<()> {
+    let total_player_count = get_registered_player_count().await?;
+    let page_count = (total_player_count / 100) as u32;
+
+    tracing::info!("Total player count: {}", total_player_count);
+    tracing::info!("Page count: {}", page_count);
+
+    let mut page: i32 = 1;
+    let mut rank: i32 = 1;
+
+    for _ in 0..=page_count + 1 {
+        tracing::info!("Getting page {}", &page);
+
+        let leaderboard = get_leaderboard_page(Some(page.try_into()?)).await;
+
+        if let Ok(leaderboard_page) = leaderboard {
+            for player in leaderboard_page {
+                sqlx::query!(
+                    "INSERT INTO players (username, experience, rank)
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (username) DO UPDATE SET experience = $2, rank = $3",
+                    player.username,
+                    i32::try_from(player.experience).unwrap_or(0),
+                    rank,
+                )
+                .execute(&*pg)
+                .await?;
+
+                rank += 1;
+            }
+
+            page += 1;
+        }
+    }
+
+    Ok(())
+}
+
 /// Processes the online list and the leaderboard data.
 async fn process(
-    _players_online: &OnlineList,
-    _leaderboard: &LeaderboardPage,
-    _pg: Database,
+    players_online: &OnlineList,
+    leaderboard: &LeaderboardPage,
+    pg: Database,
 ) -> Result<()> {
+    // Update players online, adding them if they are not in the primary table.
+    for player in players_online {
+        sqlx::query!(
+            r#"
+            INSERT INTO players (username, online)
+            VALUES ($1, true)
+            ON CONFLICT (username) DO UPDATE SET online = true
+            "#,
+            player
+        )
+        .execute(&*pg)
+        .await?;
+    }
+
     // sqlx::query!(
     //     r#"
     //     INSERT INTO players (username, experience, rank, online)
