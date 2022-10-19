@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS players
     username VARCHAR(255) UNIQUE PRIMARY KEY NOT NULL,
     online BOOLEAN DEFAULT false NOT NULL,
     experience INT DEFAULT 0 NOT NULL,  
-    rank INT,
+    rank INT NOT NULL,
 
     /* Meta Data */
     created_on TIMESTAMP DEFAULT now() NOT NULL,
